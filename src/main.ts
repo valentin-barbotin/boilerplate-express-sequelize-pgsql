@@ -1,14 +1,33 @@
-import express from 'express';
+import express, { json } from 'express';
 
-const host = process.env.HOST ?? 'localhost';
-const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+import { getDatabase } from './database'
+import { Config } from './config';
+import Logger from './logger';
+import { UserController } from './controllers';
 
-const app = express();
+(async () => {
+  Config.validate();
+  const app = express();
+  const sequelize = getDatabase();
 
-app.get('/', (req, res) => {
-  res.send({ message: 'Hello API' });
-});
+  try {
+    await sequelize.authenticate();
+    console.log('Connection has been established successfully.');
+  } catch (error) {
+    console.error('Unable to connect to the database:', error);
+  }
 
-app.listen(port, host, () => {
-  console.log(`[ ready ] http://${host}:${port}`);
-});
+  const userController = new UserController();
+
+  app.get('/', (req, res) => {
+    res.send({ message: 'Hello API' });
+  });
+
+  app.use(json())
+  app.use(userController.path, userController.router());
+
+
+  app.listen(Config.env.PORT, Config.env.HOST, () => {
+    Logger.info(`Server running at http://${Config.env.HOST}:${Config.env.PORT}`);
+  });
+})();
